@@ -227,6 +227,177 @@ Store báo cáo trả nhiều bảng:
 
 ---
 
+## Báo cáo HR — Bộ điều kiện lọc chuẩn
+
+> Áp dụng khi tạo báo cáo thuộc phân hệ **HR / Nhân sự**.
+
+### Quy tắc bắt buộc trước khi tạo Filter
+
+Khi prompt yêu cầu tạo **báo cáo HR**, trước khi sinh file `Controllers/Filter/{Controller}.xml`, phải hỏi người dùng:
+
+**"Báo cáo HR này có sử dụng bộ điều kiện lọc HR chuẩn gồm Kỳ/Năm, Bộ phận, Nhân viên, Nhóm bộ phận và Nhóm nhân viên không?"**
+
+Bộ điều kiện HR chuẩn gồm:
+
+- `ky` — Kỳ
+- `nam` — Năm
+- `ma_bp` + `ten_bp%l` — Bộ phận
+- `ma_nv` + `ten_nv` — Nhân viên
+- `nh_bp1`, `nh_bp2`, `nh_bp3` + các field tên nhóm — Nhóm bộ phận
+- `nh_nv1`, `nh_nv2`, `nh_nv3` + các field tên nhóm — Nhóm nhân viên
+
+Nếu người dùng trả lời **có**:
+
+1. Thêm trực tiếp các field HR chuẩn bên dưới vào Filter.
+2. **Không cần đọc `SPEC_lookup.md`.**
+3. **Không cần đọc `SPEC_lookup-other.md`.**
+4. **Không cần tìm báo cáo HR khác làm nguồn tham khảo cho các field này.**
+5. Giữ nguyên `controller`, `reference`, `key`, `check` đã khai báo trong mẫu chuẩn.
+6. Thêm các tham số tương ứng vào `Processing` và Store theo đúng thứ tự thực tế của Filter.
+7. Nếu người dùng chỉ chọn một phần bộ lọc HR thì chỉ thêm các field được chọn.
+
+Nếu người dùng trả lời **không**, tạo Filter theo yêu cầu báo cáo bình thường.
+
+> Nên hỏi **một lần theo cả bộ**, không hỏi từng field riêng lẻ. Người dùng có thể trả lời như: "Có, nhưng bỏ nhóm nhân viên" hoặc "Chỉ dùng kỳ/năm + bộ phận".
+
+### Field HR chuẩn
+
+```xml
+<field name="ky" type="Decimal" dataFormatString="#0" allowNulls="false" aliasName="fromPeriod" defaultValue="(new Date()).getMonth() + 1;">
+	<header v="Kỳ" e="Period"></header>
+	<items style="Numeric"></items>
+</field>
+<field name="nam" type="Decimal" dataFormatString="###0" allowNulls="false">
+	<header v="Năm" e="Year"></header>
+	<items style="Numeric"></items>
+</field>
+
+<field name="ma_bp" onDemand="true">
+	<header v="Bộ phận" e="Department"></header>
+	<items style="AutoComplete" controller="hrDepartment" reference="ten_bp%l" key="(@@admin = 1 or ma_bp in (select a.ma_bp from hrbp a, @@sysDatabaseName..hrquyenbp b where dbo.ff_Inlist(a.bp_ref, b.r_access2) = 1 and b.user_id = @@userID)) and status = '1'" check="@@admin = 1 or ma_bp in (select a.ma_bp from hrbp a, @@sysDatabaseName..hrquyenbp b where dbo.ff_Inlist(a.bp_ref, b.r_access2) = 1 and b.user_id = @@userID)"/>
+</field>
+<field name="ten_bp%l" readOnly="true" external="true">
+	<header v="" e=""></header>
+</field>
+<field name="ma_nv" onDemand="true">
+	<header v="Nhân viên" e="Employee"></header>
+	<items style="AutoComplete" controller="hrEmployee" reference="ten_nv" key="(@@admin = 1 or bo_phan in (select a.ma_bp from hrbp a, @@sysDatabaseName..hrquyenbp b where dbo.ff_Inlist(a.bp_ref, b.r_access2) = 1 and b.user_id = @@userID)) and status = '1'" check="@@admin = 1 or bo_phan in (select a.ma_bp from hrbp a, @@sysDatabaseName..hrquyenbp b where dbo.ff_Inlist(a.bp_ref, b.r_access2) = 1 and b.user_id = @@userID)"/>
+</field>
+<field name="ten_nv" readOnly="true" external="true">
+	<header v="" e=""></header>
+</field>
+
+<field name="nh_bp1" onDemand="true">
+	<header v="Nhóm bộ phận" e="Department Group"></header>
+	<items style="AutoComplete" controller="hrDepartmentGroup" reference="ten_nhbp1%l" key="status='1' and loai_nh=1" check="loai_nh=1"/>
+</field>
+<field name="ten_nhbp1%l" readOnly="true" external="true" defaultValue="''">
+	<header v="" e=""></header>
+</field>
+<field name="nh_bp2" onDemand="true">
+	<header v="" e=""></header>
+	<items style="AutoComplete" controller="hrDepartmentGroup" reference="ten_nhbp2%l" key="status='1' and loai_nh=2" check="loai_nh=2"/>
+</field>
+<field name="ten_nhbp2%l" readOnly="true" external="true" defaultValue="''">
+	<header v="" e=""></header>
+</field>
+<field name="nh_bp3" onDemand="true">
+	<header v="" e=""></header>
+	<items style="AutoComplete" controller="hrDepartmentGroup" reference="ten_nhbp3%l" key="status='1' and loai_nh=3" check="loai_nh=3"/>
+</field>
+<field name="ten_nhbp3%l" readOnly="true" external="true" defaultValue="''">
+	<header v="" e=""></header>
+</field>
+
+<field name="nh_nv1" onDemand="true">
+	<header v="Nhóm nhân viên 1" e="Employee Group 1"></header>
+	<footer v="Nhóm nhân viên" e="Employee Group"/>
+	<items style="AutoComplete" controller="hrEmployeeGroup" reference="ten_nh_nv1%l" key="status = '1' and loai_nh = 1" check="loai_nh = 1"/>
+</field>
+<field name="ten_nh_nv1%l" readOnly="true" external="true" defaultValue="''">
+	<header v="" e=""></header>
+</field>
+<field name="nh_nv2" onDemand="true">
+	<header v="Nhóm nhân viên 2" e="Employee Group 2"></header>
+	<items style="AutoComplete" controller="hrEmployeeGroup" reference="ten_nh_nv2%l" key="status = '1' and loai_nh = 2" check="loai_nh = 2"/>
+</field>
+<field name="ten_nh_nv2%l" readOnly="true" external="true" defaultValue="''">
+	<header v="" e=""></header>
+</field>
+<field name="nh_nv3" onDemand="true">
+	<header v="Nhóm nhân viên 3" e="Employee Group 3"></header>
+	<items style="AutoComplete" controller="hrEmployeeGroup" reference="ten_nh_nv3%l" key="status = '1' and loai_nh = 3" check="loai_nh = 3"/>
+</field>
+<field name="ten_nh_nv3%l" readOnly="true" external="true" defaultValue="''">
+	<header v="" e=""></header>
+</field>
+```
+
+### Layout chuẩn
+
+Khi sử dụng toàn bộ bộ field HR trên, có thể dùng trực tiếp layout sau:
+
+```xml
+<item value="120, 30, 10, 60, 100, 100, 130, 0, 0, 0"/>
+<item value="110-------: [ky].Label, [ky]"/>
+<item value="110-------: [nam].Label, [nam]"/>
+<item value="11001001--: [ma_bp].Label, [ma_bp], [ten_bp%l], [ten_nhbp1%l]"/>
+<item value="11001000--: [ma_nv].Label, [ma_nv], [ten_nv]"/>
+<item value="110011-1--: [nh_bp1].Label, [nh_bp1], [nh_bp2], [nh_bp3], [ten_nhbp2%l]"/>
+<item value="110011-111: [nh_nv1].Description, [nh_nv1], [nh_nv2], [nh_nv3], [ten_nh_nv1%l], [ten_nh_nv2%l], [ten_nh_nv3%l]"/>
+```
+
+Nếu chỉ sử dụng một phần bộ lọc HR thì phải điều chỉnh lại layout và `LineCounter` theo số dòng thực tế.
+
+### Processing / Store cho HR
+
+Khi các field HR được sử dụng, truyền các field điều kiện thực sự cần cho Store.
+
+Ví dụ:
+
+```xml
+<command event="Processing">
+	<text><![CDATA[
+select @ky as ky, @nam as nam
+
+exec hs_rpt{Controller}
+	@ky,
+	@nam,
+	@ma_bp,
+	@ma_nv,
+	@nh_bp1,
+	@nh_bp2,
+	@nh_bp3,
+	@nh_nv1,
+	@nh_nv2,
+	@nh_nv3,
+	@@language,
+	@@userID,
+	@@admin
+]]>&DynamicReportFields;
+		&ReportMarginProcessing;
+		&ReportSign.Filter.Query;
+	</text>
+</command>
+```
+
+> Thứ tự và số lượng tham số Store phải theo đúng nghiệp vụ thực tế. Không tự động truyền các field tên (`ten_bp`, `ten_nv`, `ten_nh...`) vì đây là các field hiển thị `external`, trừ khi Store thực sự yêu cầu.
+
+### Lưu ý về phân quyền HR
+
+`ma_bp` và `ma_nv` đã bao gồm điều kiện phân quyền bộ phận dựa trên:
+
+- `@@admin`
+- `@@userID`
+- `@@sysDatabaseName..hrquyenbp`
+- `dbo.ff_Inlist(...)`
+
+Vì vậy khi sử dụng mẫu chuẩn này:
+
+**Không thay `key` hoặc `check` bằng `status='1'` đơn giản và không tra lookup khác để thay thế**, trừ khi prompt yêu cầu thay đổi cơ chế phân quyền.
+
+---
+
 ## `<views>` — Bố cục Filter
 
 ```xml

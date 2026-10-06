@@ -31,7 +31,7 @@
 
 ### Sơ đồ luồng dữ liệu
 
-```
+```text
 [Filter] → Processing (exec Store) → [Dataset trả về]
                                           ↓
                                     [Grid hiển thị]
@@ -68,12 +68,47 @@ Store báo cáo luôn có 3 tham số hệ thống cuối: `@@language`, `@@user
 ## Quy trình tạo báo cáo mới
 
 1. Đọc file này (`SPEC_report-overview.md`) → hiểu tổng thể
-2. Tạo ASPX: `SPEC_aspx-main.md` (template có Filter — FilterMode="true")
-3. Đọc `SPEC_report-filter.md` → tạo `filter_rptXxx.xml`
-4. Đọc `SPEC_report-grid.md` → tạo `grid_rptXxx.xml`
-5. Đọc `SPEC_report-print.md` → tạo `report_rptXxx.xml`
-6. Tra Lookup nếu cần: `SPEC_lookup.md` → `SPEC_lookup-other.md`
-7. Đọc `SPEC_report-store.md` → viết Store procedure (hoặc tạo khung tạm)
+2. Nếu là báo cáo **HR / Nhân sự** → hỏi người dùng có sử dụng **bộ điều kiện HR chuẩn** hay không
+3. Tạo ASPX: `SPEC_aspx-main.md` (template có Filter — FilterMode="true")
+4. Đọc `SPEC_report-filter.md` → tạo `filter_rptXxx.xml`
+   - Nếu HR và người dùng chọn bộ HR chuẩn → dùng trực tiếp định nghĩa trong `SPEC_report-filter.md`, không cần tra Lookup cho các field HR chuẩn
+5. Đọc `SPEC_report-grid.md` → tạo `grid_rptXxx.xml`
+6. Đọc `SPEC_report-print.md` → tạo `report_rptXxx.xml`
+7. Tra Lookup nếu cần: `SPEC_lookup.md` → `SPEC_lookup-other.md`
+   - Không cần tra lại Lookup cho các field HR chuẩn đã được định nghĩa sẵn
+8. Đọc `SPEC_report-store.md` → viết Store procedure (hoặc tạo khung tạm)
+
+---
+
+## Báo cáo HR / Nhân sự
+
+Khi controller hoặc nghiệp vụ thuộc phân hệ **HR / Nhân sự**, trước khi tạo Filter phải hỏi người dùng:
+
+**"Báo cáo HR này có sử dụng bộ điều kiện lọc HR chuẩn gồm Kỳ/Năm, Bộ phận, Nhân viên, Nhóm bộ phận và Nhóm nhân viên không?"**
+
+Bộ điều kiện HR chuẩn gồm:
+
+- Kỳ (`ky`)
+- Năm (`nam`)
+- Bộ phận (`ma_bp`)
+- Nhân viên (`ma_nv`)
+- Nhóm bộ phận 1–3 (`nh_bp1`, `nh_bp2`, `nh_bp3`)
+- Nhóm nhân viên 1–3 (`nh_nv1`, `nh_nv2`, `nh_nv3`)
+
+### Nếu người dùng trả lời có
+
+- Dùng trực tiếp định nghĩa field, lookup, phân quyền và layout trong `SPEC_report-filter.md` → phần **"Báo cáo HR — Bộ điều kiện lọc chuẩn"**.
+- **Không cần đọc `SPEC_lookup.md` hoặc `SPEC_lookup-other.md` cho các field HR chuẩn này.**
+- **Không cần tìm báo cáo HR khác làm nguồn tham khảo cho các field HR chuẩn này.**
+- Giữ nguyên `controller`, `reference`, `key`, `check` của mẫu HR chuẩn.
+- Nếu người dùng chỉ muốn một phần bộ lọc, chỉ đưa các field được chọn vào Filter và tính lại layout / `LineCounter`.
+- Các field ngoài bộ HR chuẩn vẫn tra Lookup theo quy trình bình thường nếu cần.
+
+### Nếu người dùng trả lời không
+
+Tạo Filter theo yêu cầu báo cáo bình thường và tra Lookup khi cần.
+
+> Chỉ hỏi **một lần theo cả bộ**. Người dùng có thể trả lời linh hoạt, ví dụ: "Có, nhưng bỏ nhóm nhân viên" hoặc "Chỉ dùng kỳ/năm + bộ phận".
 
 ---
 
@@ -185,3 +220,4 @@ END
 4. **Store tạm**: khi prompt không cung cấp logic nghiệp vụ, tạo Store khung chỉ select rỗng
 5. **Tab chữ ký + canh chỉnh**: mặc định **luôn có** (qua entity `&ReportSign...`, `&ReportMargin...`). Nếu không cần, prompt sẽ ghi rõ "không cần chữ ký"
 6. **Viết Store đầy đủ**: xem `SPEC_report-store.md` — quy tắc SQL, phân kỳ, tồn/dư, bảng post
+7. **Báo cáo HR**: phải hỏi về bộ điều kiện HR chuẩn trước khi tạo Filter; nếu dùng bộ chuẩn thì lấy trực tiếp từ `SPEC_report-filter.md`, không tra nguồn tham khảo cho các field đó
